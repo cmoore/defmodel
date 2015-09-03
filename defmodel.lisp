@@ -18,6 +18,8 @@
        ,@body)))
 
 
+
+
 (defmacro defmodel (name slot-definitions)
   (let ((exports (mapcan (lambda (spec)
                            (when (getf (cdr spec) :export)
@@ -35,44 +37,53 @@
 
        ;; Export symbols for all accessors marked as 'export'
        (export ',(symb name 'uid))
+       
        ,@ (mapcar (lambda (name) `(export ',name))
                   exports)
 
        (with-pg
-           (unless (table-exists-p ',name)
-             (execute (dao-table-definition ',name))))
+         (unless (table-exists-p ',name)
+           (execute (dao-table-definition ',name))))
 
        (defmacro ,(symb name 'create) (&rest args)
          `(with-pg
-              (make-dao ',',name ,@args)))
+            (make-dao ',',name ,@args)))
        (export ',(symb name 'create))
 
        (defun ,(symb name 'get-all) ()
          (with-pg
-             (select-dao ',name)))
+           (select-dao ',name)))
        (export ',(symb name 'get-all))
 
        (defun ,(symb name 'get) (id)
          (with-pg
-             (get-dao ',name id)))
+           (get-dao ',name id)))
        (export ',(symb name 'get))
 
        (defmacro ,(symb name 'query-dao) (expression)
          `(with-pg
-              (query-dao ',',name ,expression)))
+            (query-dao ',',name ,expression)))
        (export ',(symb name 'query-dao))
 
        (defmacro ,(symb name 'select) (sql-test &optional sort)
          `(with-pg
-              (select-dao ',',name ,sql-test ,sort)))
+            (select-dao ',',name ,sql-test ,sort)))
        (export ',(symb name 'select))
 
        (defun ,(symb name 'update) (,name)
          (with-pg
-             (update-dao ,name)))
+           (update-dao ,name)))
        (export ',(symb name 'update))
 
        (defun ,(symb name 'delete) (,name)
          (with-pg
-             (delete-dao ,name)))
-       (export ',(symb name 'delete)))))
+           (delete-dao ,name)))
+       (export ',(symb name 'delete))
+
+       ,@ (mapcar (lambda (slot)
+                    `(progn (defun ,(symb 'find-by slot) (thing)
+                              (,(symb name 'select) (:= ',(intern
+                                                           (cadr
+                                                            (split-sequence:split-sequence #\- (string slot)))) thing)))
+                            (export ',(symb 'find-by slot))))
+                  exports))))
