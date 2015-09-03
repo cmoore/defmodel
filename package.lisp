@@ -8,6 +8,5 @@
            #:*db-database*
            #:*db-user*
            #:*db-pass*
-           #:*db-host*))
-
-
+           #:*db-host*
+           #:with-pg))
