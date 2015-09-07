@@ -3,13 +3,6 @@
 ;;; Defines utilities for Postmodern databases.
 ;;;
 ;;;
-;;;
-;;;
-;;;  How to actually use this:
-;;;
-;;;
-;;; data.lisp (or wherever you decide to use it)
-;;;
 ;;; (in-package :yourpackage)
 ;;;
 ;;; (eval-when (:compile-toplevel :load-toplevel)
