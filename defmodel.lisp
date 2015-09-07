@@ -81,10 +81,6 @@
          (unless (table-exists-p ',name)
            (execute (dao-table-definition ',name))))
 
-       ;;; (table-drop-db) -> Drops the table from the database.
-       (defmacro ,(symb name 'drop-db) ()
-         `(with-pg (execute (format nil "drop table ~a" ',',name))))
-
        ;;; (table-create :slot "value" :slot "value" ...)
        (defmacro ,(symb name 'create) (&rest args)
          `(with-pg
@@ -132,10 +128,10 @@
        (export ',(symb name 'delete))
 
        ;;; (find-by-table-slot "thing") -> (#<TABLE> #<TABLE>)
-       ,@ (map 'nil (lambda (slot)
-                      `(progn (defun ,(symb 'find-by slot) (thing)
-                                (,(symb name 'select) (:= ',(intern
-                                                             (cadr
-                                                              (split-sequence:split-sequence #\- (string slot)))) thing)))
-                              (export ',(symb 'find-by slot))))
-               exports))))
+       ,@ (mapcar (lambda (slot)
+                    `(progn (defun ,(symb 'find-by slot) (thing)
+                              (,(symb name 'select) (:= ',(intern
+                                                           (cadr
+                                                            (split-sequence:split-sequence #\- (string slot)))) thing)))
+                            (export ',(symb 'find-by slot))))
+                  exports))))
