@@ -1,5 +1,41 @@
+;;;
+;;; defmodel
+;;; Defines utilities for Postmodern databases.
+;;;
+;;;
+;;;
+;;;
+;;;  How to actually use this:
+;;;
+;;;
+;;; data.lisp (or wherever you decide to use it)
+;;;
+;;; (in-package :yourpackage)
+;;;
+;;; (eval-when (:compile-toplevel :load-toplevel)
+;;;    (setf defmodel:*db-database* "mydb")
+;;;    (setf defmodel:*db-user* "myuser")
+;;;    (setf defmodel:*db-pass* "mypassword")
+;;;    (setf defmodel:*db-host* "127.0.0.1"))
+;;;
+;;;
+;;; (defmodel person ((email :col-type text
+;;;                          :accessor person-email
+;;;                          :initarg :email
+;;;                          :export t)))
+;;;
+;;;
+;;; And that's it!
+;;;
+;;; Now you have available to you:
+;;; find-by-person-email, person-select, person-get, person-update,
+;;; person-select, person-delete, person-get-all, and person-query-dao
+;;;
+;;;
+
 
 (in-package #:defmodel)
+
 
 (defvar *db-database* nil)
 (defvar *db-user* nil)
@@ -18,9 +54,8 @@
        ,@body)))
 
 
-
-
 (defmacro defmodel (name slot-definitions)
+  
   (let ((exports (mapcan (lambda (spec)
                            (when (getf (cdr spec) :export)
                              (let ((name (getf (cdr spec) :accessor)))
@@ -35,55 +70,72 @@
          (:metaclass dao-class)
          (:keys uid))
 
-       ;; Export symbols for all accessors marked as 'export'
        (export ',(symb name 'uid))
-       
+
+       ;; Export symbols for all accessors marked as 'export'
        ,@ (mapcar (lambda (name) `(export ',name))
                   exports)
 
+       ;;; Create the table if it does not already exist.
        (with-pg
          (unless (table-exists-p ',name)
            (execute (dao-table-definition ',name))))
 
+       ;;; (table-drop-db) -> Drops the table from the database.
+       (defmacro ,(symb name 'drop-db) ()
+         `(with-pg (execute (format nil "drop table ~a" ',',name))))
+
+       ;;; (table-create :slot "value" :slot "value" ...)
        (defmacro ,(symb name 'create) (&rest args)
          `(with-pg
             (make-dao ',',name ,@args)))
        (export ',(symb name 'create))
 
+       ;;; (table-get-all) -> (#<TABLE> #<TABLE> ...)
        (defun ,(symb name 'get-all) ()
          (with-pg
            (select-dao ',name)))
        (export ',(symb name 'get-all))
 
+       ;;; (table-get "uid") -> #<TABLE>
        (defun ,(symb name 'get) (id)
          (with-pg
            (get-dao ',name id)))
        (export ',(symb name 'get))
 
+       
        (defmacro ,(symb name 'query-dao) (expression)
          `(with-pg
             (query-dao ',',name ,expression)))
        (export ',(symb name 'query-dao))
 
+       ;;; (table-select (:and (:= 'slot "value")
+       ;;;                     (:not-null 'slot)))
        (defmacro ,(symb name 'select) (sql-test &optional sort)
          `(with-pg
             (select-dao ',',name ,sql-test ,sort)))
        (export ',(symb name 'select))
 
+       ;;; (defvar x (table-get "uid"))
+       ;;; (setf (table-slot x) "Honk")
+       ;;; (table-update x)
        (defun ,(symb name 'update) (,name)
          (with-pg
            (update-dao ,name)))
        (export ',(symb name 'update))
 
+       ;;; (defvar x (table-get "uid"))
+       ;;; (table-delete x)
        (defun ,(symb name 'delete) (,name)
          (with-pg
            (delete-dao ,name)))
        (export ',(symb name 'delete))
 
-       ,@ (mapcar (lambda (slot)
-                    `(progn (defun ,(symb 'find-by slot) (thing)
-                              (,(symb name 'select) (:= ',(intern
-                                                           (cadr
-                                                            (split-sequence:split-sequence #\- (string slot)))) thing)))
-                            (export ',(symb 'find-by slot))))
-                  exports))))
+       ;;; (find-by-table-slot "thing") -> (#<TABLE> #<TABLE>)
+       ,@ (map 'nil (lambda (slot)
+                      `(progn (defun ,(symb 'find-by slot) (thing)
+                                (,(symb name 'select) (:= ',(intern
+                                                             (cadr
+                                                              (split-sequence:split-sequence #\- (string slot)))) thing)))
+                              (export ',(symb 'find-by slot))))
+               exports))))
