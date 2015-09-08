@@ -120,11 +120,11 @@
            (delete-dao ,name)))
        (export ',(symb name 'delete))
 
-       ;;; (find-by-table-slot "thing") -> (#<TABLE> #<TABLE>)
+       ;;; (find-by-table-slot "value") -> (#<TABLE> #<TABLE>)
        ,@ (mapcar (lambda (slot)
-                    `(progn (defun ,(symb 'find-by slot) (thing)
+                    `(progn (defun ,(symb 'find-by slot) (value)
                               (,(symb name 'select) (:= ',(intern
                                                            (cadr
-                                                            (split-sequence:split-sequence #\- (string slot)))) thing)))
+                                                            (split-sequence:split-sequence #\- (string slot)))) value)))
                             (export ',(symb 'find-by slot))))
                   exports))))
