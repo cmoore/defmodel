@@ -1,0 +1,72 @@
+#+BEGIN_HTML
+<script src="http://code.jquery.com/jquery-1.4.2.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/webfont/1.0.9/webfont.js"></script>
+<script type="text/javascript">
+  WebFontConfig = {
+    google: { families: [ 'Source Code Pro','Source Sans Pro' ] }
+  };
+  (function() {
+    var wf = document.createElement('script');
+    wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
+            '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
+		wf.type = 'text/javascript';
+    wf.async = 'true';
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(wf, s);
+  })();
+</script>
+<style type="text/css"> 
+	p { width: 800px; }
+   .wf-active pre, code {
+     font-family: 'Source Code Pro';
+		 font-size: 16px;
+   }
+   .wf-active p, li, h1, h2, h3, h4 {
+     font-family: 'Source Sans Pro', serif;
+	 }
+</style>
+#+END_HTML
+#+LATEX_HEADER: \usepackage{color}
+#+STARTUP: content
+#+STARTUP: lognotestate
+#+TITLE:Deviate
+#+AUTHOR: Clint Moore
+#+EMAIL:clint@ivy.io
+#+BABEL: :session *CL* :cache yes :results output :exports both
+
+This is a test, while I try to get things set up so that I can efficiently write literate programs.
+
+#+begin_src lisp -n -r :tangle test.lisp
+  (defun org-xor (a b)
+    (if a (not b) b))
+#+end_src
+
+#+BEGIN_LaTeX
+\marginpar{\color{blue} \tiny \raggedright \vspace{18pt}
+In the molly 23 layout, not all tilings have the same number of hexes.}
+#+END_LaTeX
+
+#+begin_src lisp -n -r :tangle test.lisp
+  (defun fixate (a b)
+    (sort (reverse a b)))
+#+end_src
+
+Thingy dingy.
+
+#+INCLUDE: "include/html_tail.org"
+
+#+BEGIN_HTML
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES * * */
+    var disqus_shortname = 'literateprograms';
+    
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+#+END_HTML
