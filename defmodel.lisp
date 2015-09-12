@@ -43,7 +43,7 @@
   
   (defmacro with-pg (&body body)
     `(postmodern:with-connection
-         (list ,*db-database* ,*db-user* ,*db-pass* ,*db-host* :pooled-p t)
+         (list *db-database* *db-user* *db-pass* *db-host* :pooled-p t)
        ,@body)))
 
 
@@ -65,14 +65,14 @@
 
        (export ',(symb name 'uid))
 
+       ;; Create the table if it doesn't exist.
+       (with-pg
+           (unless (table-exists-p ',name)
+             (execute (dao-table-definition ',name))))
+       
        ;; Export symbols for all accessors marked as 'export'
        ,@ (mapcar (lambda (name) `(export ',name))
                   exports)
-
-       ;;; Create the table if it does not already exist.
-       (with-pg
-         (unless (table-exists-p ',name)
-           (execute (dao-table-definition ',name))))
 
        ;;; (table-create :slot "value" :slot "value" ...)
        (defmacro ,(symb name 'create) (&rest args)
