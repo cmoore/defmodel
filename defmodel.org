@@ -1,59 +1,235 @@
 #+BEGIN_HTML
 <script src="http://code.jquery.com/jquery-1.4.2.min.js"></script>
-<script src="http://ajax.googleapis.com/ajax/libs/webfont/1.0.9/webfont.js"></script>
-<script type="text/javascript">
-  WebFontConfig = {
-    google: { families: [ 'Source Code Pro','Source Sans Pro' ] }
-  };
-  (function() {
-    var wf = document.createElement('script');
-    wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
-            '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
-		wf.type = 'text/javascript';
-    wf.async = 'true';
-    var s = document.getElementsByTagName('script')[0];
-    s.parentNode.insertBefore(wf, s);
-  })();
-</script>
 <style type="text/css"> 
-	p { width: 800px; }
-   .wf-active pre, code {
+  .org-src-container, code {
      font-family: 'Source Code Pro';
-		 font-size: 16px;
    }
-   .wf-active p, li, h1, h2, h3, h4 {
-     font-family: 'Source Sans Pro', serif;
+   .outline-2 {
+     font-family: 'Open Sans', serif;
 	 }
 </style>
 #+END_HTML
+#+STARTUP: indent
+#+STARTUP: showall
+#+STARTUP: latexpreview
 #+LATEX_HEADER: \usepackage{color}
-#+STARTUP: content
-#+STARTUP: lognotestate
-#+TITLE:Deviate
+#+LATEX_HEADER: \usepackage[utf8]{inputenc}
+#+LATEX_HEADER: \usepackage{lmodern}
+#+LATEX_CLASS: article
+#+HTML_HEAD: <link href='https://fonts.googleapis.com/css?family=Open+Sans|Source+Code+Pro' rel='stylesheet' type='text/css'>
+#+OPTIONS: toc:2
+#+TITLE: Defmodel
 #+AUTHOR: Clint Moore
 #+EMAIL:clint@ivy.io
 #+BABEL: :session *CL* :cache yes :results output :exports both
 
-This is a test, while I try to get things set up so that I can efficiently write literate programs.
+* Introduction
 
-#+begin_src lisp -n -r :tangle test.lisp
-  (defun org-xor (a b)
-    (if a (not b) b))
+~defmodel~ is, simply, a Common Lisp macro.  The idea is that, while ~Postmodern~ provides quite a few convenience functions for interacting with databases, it leaves some rather lacking.
+
+* Usage
+
+Above most goals, the objective is to make ~defmodel~ easy to use.
+
+** Setup
+
+#+begin_latex
+\begin{samepage}
+#+end_latex
+
+Since ~defmodel~ is both a macro, and an external package, you'll need to set its connection information before calling ~defmodel~ itself.  This can be done inside an ~eval-when~ block in your package.
+
+#+BEGIN_SRC lisp
+  (eval-when (:compile-toplevel :load-toplevel)
+    (setf defmodel:*db-user* "me")
+    (setf defmodel:*db-pass* "bad password")
+    (setf defmodel:*db-host* "127.0.0.1")
+    (setf defmodel:*db-database* "mydb"))
 #+end_src
 
-#+BEGIN_LaTeX
-\marginpar{\color{blue} \tiny \raggedright \vspace{18pt}
-In the molly 23 layout, not all tilings have the same number of hexes.}
-#+END_LaTeX
+#+begin_latex
+\end{samepage}
+#+end_latex 
 
-#+begin_src lisp -n -r :tangle test.lisp
-  (defun fixate (a b)
-    (sort (reverse a b)))
+** Now go
+
+With the setup completed, you can now use the macro at will.
+
+#+begin_src lisp
+  (defmodel person ((email :initarg :email
+                           :accessor person-email
+                           :col-type text
+                           :export t)
+                    (name :initarg :name
+                          :accessor person-name
+                          :col-type text
+                          :export t)))
 #+end_src
 
-Thingy dingy.
+You may notice that in addition to using ~defmodel~ as opposed to ~defclass~, the only difference between using plain ~Postmodern~ and ~defmacro~ is the inclusion of the ~:export t~ in property slot definitions.  This property controls whether or not the symbols for all accessors are exported from the package using the macro.
 
-#+INCLUDE: "include/html_tail.org"
+* The Macro
+
+#+begin_src lisp :tangle defmodel.lisp
+  (in-package :defmodel)
+
+  (defvar *db-database* nil)
+  (defvar *db-user* nil)
+  (defvar *db-pass* nil)
+  (defvar *db-host* nil)
+#+end_src
+
+This section sets up the settings variables that are set later from whichever package requires ~defmodel~.
+
+#+begin_src lisp :tangle defmodel.lisp
+  (eval-when (:compile-toplevel :load-toplevel)
+    (local-time:set-local-time-cl-postgres-readers)
+#+end_src 
+
+~set-local-time-cl-postgres-readers~ is included to help simplify the surprisingly difficult task of reading and writing time data in such a way that you get, in this case, a ~local-time~ object back from a slot with the value ~local-time~.  There are two choices with ~Postmodern~ as to which time library you use to read and write time data, and I went with ~local-time~ since it seemed both the easiest, and the option with the least chance of eventual bitrot.
+
+#+begin_src lisp :tangle defmodel.lisp
+  (defun symb (a b)
+    (intern (format nil "~a-~a" (symbol-name a) (symbol-name b))))
+#+end_src
+
+This section simply converts a package name and symbol name into a symbol.  It's included as a convenience for writing the ~defmodel~ macro.
+
+#+begin_src lisp :tangle defmodel.lisp
+  (defmacro with-pg (&body body)
+    `(postmodern:with-connection (list *db-database* *db-user* *db-pass* *db-host* :pooled-p t)
+       ,@body)))
+#+end_src
+
+~with-pg~ is another convenience macro used both in the ~defmodel~ macro, and exported from the ~defmodel~ package.  It's a simplified version of the ~Postmodern~ macro ~with-connection~.
+
+
+And now, on with the show!
+
+#+begin_src lisp :tangle defmodel.lisp
+  (defmacro defmodel (name slot-definitions)
+
+    (let ((exports (mapcan (lambda (spec)
+                             (when (getf (cdr spec) :export)
+                               (let ((name (getf (cdr spec) :accessor)))
+                                 (list name))))
+                           slot-definitions)))                             
+#+end_src
+
+#+begin_src lisp :tangle defmodel.lisp
+    `(progn
+       (defclass ,name () ((uid :col-type string
+                                :initform (format nil "~a" (uuid:make-v4-uuid))
+                                :accessor ,(symb name :uid)
+                                :export t)
+                           ,@slot-definitions)
+         (:metaclass dao-class)
+         (:keys uid))
+
+       (export ',(symb name 'uid))
+
+       (with-pg
+           (unless (table-exists-p ',name)
+             (execute (dao-table-definition ',name))))
+       
+       ;; Export symbols for all accessors marked as 'export'
+       ,@ (mapcar (lambda (name) `(export ',name))
+                  exports)
+
+       ;;; (table-create :slot "value" :slot "value" ...)
+       (defmacro ,(symb name 'create) (&rest args)
+         `(with-pg
+            (make-dao ',',name ,@args)))
+       (export ',(symb name 'create))
+
+       ;;; (table-get-all) -> (#<TABLE> #<TABLE> ...)
+       (defun ,(symb name 'get-all) ()
+         (with-pg
+           (select-dao ',name)))
+       (export ',(symb name 'get-all))
+
+       ;;; (table-get "uid") -> #<TABLE>
+       (defun ,(symb name 'get) (id)
+         (with-pg
+           (get-dao ',name id)))
+       (export ',(symb name 'get))
+
+       
+       (defmacro ,(symb name 'query-dao) (expression)
+         `(with-pg
+            (query-dao ',',name ,expression)))
+       (export ',(symb name 'query-dao))
+
+       ;;; (table-select (:and (:= 'slot "value")
+       ;;;                     (:not-null 'slot)))
+       (defmacro ,(symb name 'select) (sql-test &optional sort)
+         `(with-pg
+            (select-dao ',',name ,sql-test ,sort)))
+       (export ',(symb name 'select))
+
+       ;;; (defvar x (table-get "uid"))
+       ;;; (setf (table-slot x) "Honk")
+       ;;; (table-update x)
+       (defun ,(symb name 'update) (,name)
+         (with-pg
+           (update-dao ,name)))
+       (export ',(symb name 'update))
+
+       ;;; (defvar x (table-get "uid"))
+       ;;; (table-delete x)
+       (defun ,(symb name 'delete) (,name)
+         (with-pg
+           (delete-dao ,name)))
+       (export ',(symb name 'delete))
+
+       ;;; (find-by-table-slot "value") -> (#<TABLE> #<TABLE>)
+       ,@ (mapcar (lambda (slot)
+                    `(progn (defun ,(symb 'find-by slot) (value)
+                              (,(symb name 'select) (:= ',(intern
+                                                           (cadr
+                                                            (split-sequence:split-sequence #\- (string slot)))) value)))
+                            (export ',(symb 'find-by slot))))
+                  exports))))
+#+end_src
+
+* Appendix
+
+~package.lisp~
+
+#+begin_src lisp :tangle package.lisp
+(defpackage #:defmodel
+  (:use #:cl
+        #:split-sequence
+        #:postmodern)
+  (:export #:defmodel
+           #:symb
+           
+           #:*db-database*
+           #:*db-user*
+           #:*db-pass*
+           #:*db-host*
+
+           #:with-pg))
+#+END_SRC
+
+~defmodel.asd~
+
+#+begin_src lisp :tangle defmodel.asd
+(asdf:defsystem #:defmodel
+  :description "Lightweight(?) models for Postmodern."
+  :author "Clint Moore <clint@ivy.io>"
+  :license "MIT"
+  :serial t
+  
+  :depends-on (#:postmodern
+               #:local-time
+               #:cl-postgres+local-time
+               #:split-sequence
+               #:uuid)
+  
+  :components ((:file "package")
+               (:file "defmodel")))
+#+end_src
 
 #+BEGIN_HTML
 <div id="disqus_thread"></div>
