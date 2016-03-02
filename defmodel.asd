@@ -9,8 +9,7 @@
   :depends-on (#:postmodern
                #:local-time
                #:cl-postgres+local-time
-               #:split-sequence
-               #:uuid)
+               #:split-sequence)
   
   :components ((:file "package")
                (:file "defmodel")))
