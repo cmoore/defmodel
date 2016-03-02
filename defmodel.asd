@@ -1,3 +1,4 @@
+
 ;;;; defmodel.asd
 
 (asdf:defsystem #:defmodel
@@ -9,7 +10,8 @@
   :depends-on (#:postmodern
                #:local-time
                #:cl-postgres+local-time
-               #:split-sequence)
+               #:split-sequence
+               #:uuid)
   
   :components ((:file "package")
                (:file "defmodel")))

@@ -57,9 +57,19 @@
                         (when (getf (cdr spec) :key)
                           (let ((name (car spec)))
                             (list name))))
-                      slot-definitions)))
+                      slot-definitions))
+        (indexable (mapcan (lambda (spec)
+                             (when (getf (cdr spec) :index)
+                               (let ((name (car spec)))
+                                 (list name))))
+                           slot-definitions)))
     `(progn
-       (defclass ,name () (,@slot-definitions)
+       (defclass ,name () ((uid :col-type string
+                                :initform (format nil "~a" (uuid:make-v4-uuid))
+                                :accessor ,(symb name :uid)
+                                :export t
+                                :index t)
+                           ,@slot-definitions)
          (:metaclass dao-class)
          ,(and keys `(:keys ,@(mapcar (lambda (k) `,k) keys))))
 
@@ -69,6 +79,14 @@
        (with-pg
          (unless (table-exists-p ',name)
            (execute (dao-table-definition ',name))))
+
+       ;; Add any indexes.
+       ;; Will throw an error if the indexes already exist.
+       (ignore-errors
+        (with-pg
+          ,@ (mapcar (lambda (idx)
+                       `(query (:create-index (quote ,(symb idx :idx)) :on ,(symbol-name name) :fields (quote ,idx))))
+                     indexable)))
        
        ;; Export symbols for all accessors marked as 'export'
        ,@ (mapcar (lambda (name) `(export ',name))
