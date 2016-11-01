@@ -53,25 +53,31 @@
                              (let ((name (getf (cdr spec) :accessor)))
                                (list name))))
                          slot-definitions))
-        (keys (mapcan (lambda (spec)
-                        (when (getf (cdr spec) :key)
-                          (let ((name (car spec)))
-                            (list name))))
-                      slot-definitions))
+        ;; (keys (mapcan (lambda (spec)
+        ;;                 (when (getf (cdr spec) :key)
+        ;;                   (let ((name (car spec)))
+        ;;                     (list name))))
+        ;;               slot-definitions))
         (indexable (mapcan (lambda (spec)
                              (when (getf (cdr spec) :index)
                                (let ((name (car spec)))
                                  (list name))))
                            slot-definitions)))
     `(progn
-       (defclass ,name () ((uid :col-type string
-                                :initform (format nil "~a" (uuid:make-v4-uuid))
-                                :accessor ,(symb name :uid)
-                                :export t
-                                :index t)
+       (defclass ,name () ((id :col-type serial
+                               :accessor ,(symb name :id)
+                               :index t
+                               :key t)
+                           (uid :col-type string
+                                   :initform (format nil "~a" (uuid:make-v4-uuid))
+                                   :accessor ,(symb name :uid)
+                                   :export t
+                                   :index t)
                            ,@slot-definitions)
          (:metaclass dao-class)
-         ,(and keys `(:keys ,@(mapcar (lambda (k) `,k) keys))))
+         (:keys id)
+         ;;,(and keys `(:keys ,@(mapcar (lambda (k) `,k) keys)))
+         )
 
        (export ',(symb name 'uid))
 
