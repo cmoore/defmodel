@@ -53,11 +53,6 @@
                              (let ((name (getf (cdr spec) :accessor)))
                                (list name))))
                          slot-definitions))
-        ;; (keys (mapcan (lambda (spec)
-        ;;                 (when (getf (cdr spec) :make-key)
-        ;;                   (let ((name (car spec)))
-        ;;                     (list name))))
-        ;;               slot-definitions))
         (indexable (mapcan (lambda (spec)
                              (when (getf (cdr spec) :index)
                                (let ((name (car spec)))
@@ -71,24 +66,24 @@
                                 :key t)
                            ,@slot-definitions)
          (:metaclass dao-class)
-         (:keys uid)
-         ;;,(and keys `(:keys ,@(mapcar (lambda (k) `,k) keys)))
-         )
+         (:keys uid))
 
        (export ',(symb name 'uid))
 
        ;; Create the table if it doesn't exist.
-       (with-pg
-         (unless (table-exists-p ',name)
-           (execute (dao-table-definition ',name))))
+       (defun ,(symb name 'create-table) ()
+         (with-pg
+           (unless (table-exists-p ',name)
+             (execute (dao-table-definition ',name)))))
 
        ;; Add any indexes.
        ;; Will throw an error if the indexes already exist.
-       (ignore-errors
-        (with-pg
-          ,@ (mapcar (lambda (idx)
-                       `(query (:create-index (quote ,(symb idx :idx)) :on ,(symbol-name name) :fields (quote ,idx))))
-                     indexable)))
+
+       (defun ,(symb name 'create-indexes) ()
+         (with-pg
+           ,@ (mapcar (lambda (idx)
+                        `(query (:create-index (quote ,(symb idx :idx)) :on ,(symbol-name name) :fields (quote ,idx))))
+                      indexable)))
        
        ;; Export symbols for all accessors marked as 'export'
        ,@ (mapcar (lambda (name) `(export ',name))
