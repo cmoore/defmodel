@@ -72,6 +72,7 @@
 
        ;; Create the table if it doesn't exist.
        (defun ,(symb name 'create-table) ()
+         (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
          (with-pg
            (unless (table-exists-p ',name)
              (execute (dao-table-definition ',name)))))
@@ -80,6 +81,7 @@
        ;; Will throw an error if the indexes already exist.
 
        (defun ,(symb name 'create-indexes) ()
+         (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
          (with-pg
            ,@ (mapcar (lambda (idx)
                         `(query (:create-index (quote ,(symb idx :idx)) :on ,(symbol-name name) :fields (quote ,idx))))
@@ -97,12 +99,14 @@
 
 ;;; (table-get-all) -> (#<TABLE> #<TABLE> ...)
        (defun ,(symb name 'get-all) ()
+         (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
          (with-pg
            (select-dao ',name)))
        (export ',(symb name 'get-all))
 
 ;;; (table-get "uid") -> #<TABLE>
        (defun ,(symb name 'get) (id)
+         (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
          (with-pg
            (get-dao ',name id)))
        (export ',(symb name 'get))
@@ -124,6 +128,7 @@
 ;;; (setf (table-slot x) "Honk")
 ;;; (table-update x)
        (defun ,(symb name 'update) (,name)
+         (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
          (with-pg
            (update-dao ,name)))
        (export ',(symb name 'update))
@@ -131,6 +136,7 @@
 ;;; (defvar x (table-get "uid"))
 ;;; (table-delete x)
        (defun ,(symb name 'delete) (,name)
+         (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
          (with-pg
            (delete-dao ,name)))
        (export ',(symb name 'delete))
