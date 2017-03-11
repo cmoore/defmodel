@@ -70,7 +70,14 @@
 
        (export ',(symb name 'uid))
 
-       ;; Create the table if it doesn't exist.
+       (defun ,(symb name 'drop-table) ()
+         (with-pg
+           (when (table-exists-p ',name)
+             (execute ,(ppcre:regex-replace "-"
+                                            (string-downcase
+                                             (format nil "drop table ~a" name))
+                                            "_")))))
+
        (defun ,(symb name 'create-table) ()
          (with-pg
            (unless (table-exists-p ',name)
