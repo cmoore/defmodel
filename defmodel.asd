@@ -11,6 +11,7 @@
                #:local-time
                #:cl-postgres+local-time
                #:split-sequence
+               #:cl-ppcre
                #:uuid)
   
   :components ((:file "package")
